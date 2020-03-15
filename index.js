@@ -324,8 +324,7 @@ class Connection extends events.EventEmitter {
                 that._acknowledge(message)
               })
                 .catch(e => {
-                  that.emit('error', new Error('module failure'))
-                  return
+                  console.log(e);
                 });
             }
             else {
