@@ -278,16 +278,6 @@ class Connection extends events.EventEmitter {
       this.emit('error', new Error(message.error))
       return
     }
-
-    function sendResult(result) {
-      if (typeof result !== 'object') {
-        result = { retval: result }
-      }
-      message._processed = ('processed' in result) ? result.processed : true
-      message._retval = result.retval || message._retval || ''
-      this._acknowledge(message)
-    }
-
     if (message._type === 'setlocal') {
       let setlocal = this.setlocals[message._name]
       if (typeof setlocal === 'function') {
@@ -324,14 +314,27 @@ class Connection extends events.EventEmitter {
           if (typeof listener === 'function') {
             let output = listener(message.params, message._retval)
             if (output instanceof Promise) {
-              output.then(sendResult)
+              const that = this;
+              output.then((result) => {
+                if (typeof result !== 'object') {
+                  result = { retval: result }
+                }
+                message._processed = ('processed' in result) ? result.processed : true
+                message._retval = result.retval || message._retval || ''
+                that._acknowledge(message)
+              })
                 .catch(e => {
-                  this.emit('error', new Error('module failure'))
+                  that.emit('error', new Error('module failure'))
                   return
                 });
             }
             else {
-              sendResult(output);
+              if (typeof result !== 'object') {
+                result = { retval: result }
+              }
+              message._processed = ('processed' in result) ? result.processed : true
+              message._retval = result.retval || message._retval || ''
+              this._acknowledge(message)
             }
           }
           break
