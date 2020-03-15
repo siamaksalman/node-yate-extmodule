@@ -17,7 +17,7 @@ class Connection extends events.EventEmitter {
     super()
 
     if (typeof options === 'number') {
-      options = {port: options}
+      options = { port: options }
     } else if (typeof options === 'function') {
       connectListener = options
     }
@@ -38,7 +38,7 @@ class Connection extends events.EventEmitter {
       this.in_stream = process.stdin
       this.out_stream = process.stdout
       this.parameters.restart = true
-      console.log = console.dir = console.error = console.warn = function() {
+      console.log = console.dir = console.error = console.warn = function () {
       }
 
     } else {
@@ -147,7 +147,7 @@ class Connection extends events.EventEmitter {
     if (this.subscriptions[name]) {
       throw new Error(`subscription to '${name}' already exists, unsubscribe first`)
     }
-    this.subscriptions[name] = {name, priority, filterParam, filterVal, listener}
+    this.subscriptions[name] = { name, priority, filterParam, filterVal, listener }
     if (this.connected) {
       this._install(name, priority, filterParam, filterVal)
     }
@@ -192,7 +192,7 @@ class Connection extends events.EventEmitter {
   }
 
   command(text, callback) {
-    this.dispatch('engine.command', {line: text}, (result, message, processed) => {
+    this.dispatch('engine.command', { line: text }, (result, message, processed) => {
       callback(!processed, result.slice(0, -2))
     })
   }
@@ -256,7 +256,7 @@ class Connection extends events.EventEmitter {
     }
     for (let key in this.subscriptions) {
       let subscription = this.subscriptions[key]
-      let {name, priority, filterParam, filterVal} = subscription
+      let { name, priority, filterParam, filterVal } = subscription
       this._install(name, priority, filterParam, filterVal)
     }
     for (let name in this.watchers) {
@@ -278,6 +278,16 @@ class Connection extends events.EventEmitter {
       this.emit('error', new Error(message.error))
       return
     }
+
+    function sendResult(result) {
+      if (typeof result !== 'object') {
+        result = { retval: result }
+      }
+      message._processed = ('processed' in result) ? result.processed : true
+      message._retval = result.retval || message._retval || ''
+      this._acknowledge(message)
+    }
+
     if (message._type === 'setlocal') {
       let setlocal = this.setlocals[message._name]
       if (typeof setlocal === 'function') {
@@ -312,13 +322,17 @@ class Connection extends events.EventEmitter {
         case 'incoming':
           let listener = subscription.listener
           if (typeof listener === 'function') {
-            let result = listener(message.params, message._retval)
-            if (typeof result !== 'object') {
-              result = {retval: result}
+            let output = listener(message.params, message._retval)
+            if (output instanceof Promise) {
+              output.then(sendResult)
+                .catch(e => {
+                  this.emit('error', new Error('module failure'))
+                  return
+                });
             }
-            message._processed = ('processed' in result) ? result.processed : true
-            message._retval = result.retval || message._retval || ''
-            this._acknowledge(message)
+            else {
+              sendResult(output);
+            }
           }
           break
       }
@@ -581,7 +595,7 @@ function beautify(object) {
         } else {
           if (typeof object === 'object' && key in object) {
             if (typeof object[key] !== 'object') {
-              object[key] = {[key]: object[key]}
+              object[key] = { [key]: object[key] }
             }
           } else {
             object[key] = {}
