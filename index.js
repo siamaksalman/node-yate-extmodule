@@ -329,7 +329,7 @@ class Connection extends events.EventEmitter {
                 });
             }
             else {
-              const result = output;
+              let result = output;
               if (typeof result !== 'object') {
                 result = { retval: result }
               }
